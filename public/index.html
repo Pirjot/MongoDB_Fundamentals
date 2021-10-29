@@ -1,9 +1,40 @@
 <!DOCTYPE html>
 <html>
     <head>
-
+        <title>MongoDB Fundamentals</title>
     </head>
     <body>
         <h1>Welcome to MongoDB!</h1>
+        <form>
+            <label>Enter information to send to the database!</label>
+            <input id="database" type="text">
+            <button id="submit">Submit to Database</button>
+        </form>
+        <button id="get_data">Get Data from Database</button>
+        <script>
+            document.getElementById("submit").addEventListener("click", async (evt) => {
+                evt.preventDefault();
+                const options = {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({"info": document.getElementById("database").value})
+                };
+                let response = await fetch('/database', options);
+                console.log(await response.json());
+            });
+            document.getElementById("get_data").addEventListener("click", async (evt) => {
+                evt.preventDefault();
+                const options = {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                };
+                let response = await (await fetch('/get_data', options)).json();
+                console.log(response);
+            });
+        </script>
     </body>
 </html>
