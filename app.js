@@ -1,12 +1,13 @@
 const express = require('express');
 const app = express();
 require('dotenv').config(); //Load all variables in .env
-
+const cookieParser = require('cookie-parser');
 
 const mongo = require('./mongodb-pirjot.js');
 const routes = require('./routes.js');
+mongo.connectClient();
 
-
+app.use(cookieParser());
 app.use(express.json());
 app.use(express.static('public'));
 
@@ -15,6 +16,9 @@ app.post('/database', (req, res) => routes.database(req, res));
 
 //Get all data and send it back to the client
 app.get('/get_data', (req, res) => routes.get_data(req, res));
+
+//Sign up for an account
+app.post('/sign_up', (req, res) => routes.sign_up(req, res));
 
 let server = app.listen(3000, () => console.log("Listening..."));
 
@@ -61,7 +65,7 @@ async function testMongo() {
     response = await mongo.delete_docs_q({}, "test", "test");
     console.log(await mongo.get_data({}, "test", "test"));
 }
-testMongo();
+// testMongo();
 
 //On server/process closing, ensure that the MongoDB connection was terminated
 process.on('SIGINT', () => {

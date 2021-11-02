@@ -31,7 +31,7 @@ async function connectClient(req, res, next=()=>{}) {
         module.exports.isConnected = true;
         await module.exports.client.connect();
     } else {
-        console.log("Already Connected, ignoring request. (Please comment this line in official versions.)");
+        // console.log("Already Connected, ignoring request. (Please comment this line in official versions.)");
         next();
         return false;
     }

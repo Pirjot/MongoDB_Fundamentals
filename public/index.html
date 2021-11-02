@@ -2,6 +2,7 @@
 <html>
     <head>
         <title>MongoDB Fundamentals</title>
+        <script src = "scripts/accounts.js"></script>
     </head>
     <body>
         <h1>Welcome to MongoDB!</h1>
@@ -11,30 +12,22 @@
             <button id="submit">Submit to Database</button>
         </form>
         <button id="get_data">Get Data from Database</button>
-        <script>
-            document.getElementById("submit").addEventListener("click", async (evt) => {
-                evt.preventDefault();
-                const options = {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({"info": document.getElementById("database").value})
-                };
-                let response = await fetch('/database', options);
-                console.log(await response.json());
-            });
-            document.getElementById("get_data").addEventListener("click", async (evt) => {
-                evt.preventDefault();
-                const options = {
-                    method: "GET",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                };
-                let response = await (await fetch('/get_data', options)).json();
-                console.log(response);
-            });
-        </script>
+        <form>
+            Enter your username and password below and click submit to Sign Up!
+            <input id="username_up" type="text" placeholder="Username">
+            <input id="password_up" type="password" placeholder="Password">
+            <button id="signup">Sign Up for an account</button>
+        </form>
+        <form>
+            Enter your username and password below and click submit to Login!
+            <input id="username_in" type="text" placeholder="Username">
+            <input id="password_in" type="password" placeholder="Password">
+            <button id="login">Login</button>
+        </form>
+        <button id="signout">Sign out</button>
+        <p id="sign-in-status" style="color:red">You are not signed in</p>
+        <textarea id="user-data" placeholder="Enter your special account data here!" style="display:none"></textarea>
+        <button id="submit-data" style="display:none">Submit your special data to the server!</button>
+        <script src = "scripts/main.js"></script>
     </body>
 </html>
