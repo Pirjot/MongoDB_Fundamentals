@@ -17,6 +17,34 @@ function onPageLoad() {
             body: JSON.stringify({"username": username, "password": password})
         };
         let response = await fetch('/sign_up', options);
+        window.location.reload();
+        console.log(await response.json());
+    });
+    document.getElementById("login").addEventListener("click", async (evt) => {
+        evt.preventDefault();
+        let username = document.getElementById("username_in").value;
+        let password = document.getElementById("password_in").value;
+        const options = {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({"username": username, "password": password})
+        };
+        let response = await fetch('/login', options);
+        window.location.reload();
+        console.log(await response.json());
+    });
+    document.getElementById("signout").addEventListener("click", async (evt) => {
+        evt.preventDefault();
+        const options = {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json"
+            },
+        };
+        let response = await fetch('/logout', options);
+        // window.location.reload();
         console.log(await response.json());
     });
 }

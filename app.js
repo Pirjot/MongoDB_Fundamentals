@@ -20,6 +20,14 @@ app.get('/get_data', (req, res) => routes.get_data(req, res));
 //Sign up for an account
 app.post('/sign_up', (req, res) => routes.sign_up(req, res));
 
+//Login to an account
+app.post('/login', (req, res) => routes.login(req, res));
+
+app.get('/logout', (req, res) => routes.logout(req, res));
+
+//On every page load, verify if the user is signed in and if so, who they are signed is as.
+app.get('/verify-session', (req, res) => routes.verify_session(req, res));
+
 let server = app.listen(3000, () => console.log("Listening..."));
 
 /**

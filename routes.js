@@ -51,20 +51,53 @@ async function sign_up(req, res) {
     //Sign up the account
     let sign_up_response = await accounts.sign_up(username, password);
 
-    //Issue a new session using the account's _id
-    let session_response = await accounts.issue_session(sign_up_response["user_id"]);
-    
-    res.cookie("session", session_response["hash"], { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
+    if (sign_up_response["account_created"]) {
+        //Issue a new session using the account's _id
+        let session_response = await accounts.issue_session(sign_up_response["user_id"]);
+        
+        res.cookie("session", session_response["hash"], { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
+    }
     res.send({"info": sign_up_response["info"], "account_created": sign_up_response["account_created"]});
 }
 
 /**
- * 
+ * Login in a user. Sets session in cookie (for 24 hours.)
+ * @param {*} req The request should have a body that has the following structure:
+ * {
+ *      username: <STRING>,
+ *      password: <STRING>
+ * }
+ * @param {*} res The result is a JSON object of the following structure:
+ * {
+ *      loggedIn: true / false,
+ *      info: <STRING>,
+ * }
+ */
+async function login(req, res) {
+    //TODO: Perform some error checking possibly, parsing, cleaning up,etc.
+    let username = req.body.username;
+    let password = req.body.password;
+
+    let login_response = await accounts.login(username, password);
+
+    if (login_response["loggedIn"]) {
+        //Issue a new session using the account's _id
+        let session_response = await accounts.issue_session(login_response["user_id"]);
+        
+        res.cookie("session", session_response["hash"], { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
+    }
+
+    res.send({"info": login_response["info"], "loggedIn": login_response["loggedIn"]});
+}
+
+/**
+ * Logout, deleting the session cookie.
  * @param {*} req 
  * @param {*} res 
  */
-async function login(req, res) {
-
+async function logout(req, res) {
+    res.clearCookie("session");
+    res.send({"info": "You have been logged out."});
 }
 
 /**
@@ -79,14 +112,24 @@ async function login(req, res) {
  * @param {*} res
  */
 async function verify_session(req, res) {
-    console.log(req.cookies["session"]);
+    let verify_response = await accounts.verify_session(req.cookies["session"]);
+
+    let response = {isSignedIn: false, username: null, data: null};
+
+    if (verify_response["valid"]) {
+        response.isSignedIn = true;
+        response.username = await accounts.get_account_username(verify_response["user_id"]);
+        // response.data = await accounts.get_data(verify_response["user_id"]);
+    }
+
+    res.send(response);
 }
 
 
-async function get_username(req, res) {
+async function get_username(req, res) {s
 
 }
 
 module.exports = {
-    database, get_data, sign_up
+    database, get_data, sign_up, login, logout, verify_session
 }

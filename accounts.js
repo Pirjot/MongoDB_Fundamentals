@@ -49,6 +49,8 @@
 const mongo = require('./mongodb-pirjot.js');
 //Import the crypto module, used for encrypting a given username and password
 const crypto = require('crypto');
+const { ObjectId } = require('bson');
+const { match } = require('assert');
 
 /**
  * Decrypt the hash/salt using a password and return true if the password is correct.
@@ -161,24 +163,69 @@ async function sign_up(username, password) {
     }
 }
 
-function login() {
+/**
+ * Take in a username and password, if it is valid, send back a session.
+ * 
+ * @param {String} username
+ * @param {String} password
+ * @returns An object symbolizing if the session was successfully issued.
+ * {
+ *      info: "LOGIN FAILED" / ...,
+ *      user_id: <STRING>,
+ *      loggedIn: true / false
+ * }
+ */
+async function login(username, password) {
+    let loggedIn = false;
+    let message = "LOGIN FAILED";
+    let user_id = 0;
+    
+    let accounts = (await mongo.get_data({"username": username}, "Accounts", "accounts"));
 
+    if (accounts.length == 0) { //An account with that username doesn't exist
+        message = "ACCOUNT DOES NOT EXIST";
+    } else if (!validPassword(password, accounts[0]["hash"], accounts[0]["salt"])) { //If password isn't right
+        message = "INCORRECT PASSWORD";
+    } else { //Account is good, issue a new session
+        user_id = accounts[0]["_id"].toString();
+        message = "LOGIN SUCCESSFUL";
+        loggedIn = true;
+    }
+    return {
+        info: message,
+        user_id: user_id,
+        loggedIn: loggedIn
+    }
 }
 
 async function fetch_all_accounts() {
     return await mongo.get_data({}, "Accounts", "accounts");
 }
 
-function get_account_username() {
-    
+/**
+ * Get a person's username using their user_id.
+ * 
+ * @param {String} user_id
+ * @returns {String} the person's username (or null if not found)
+ */
+async function get_account_username(user_id) {
+    let username = null;
+    try {
+        let matching_accounts = await mongo.get_data({"_id": ObjectId(user_id)}, "Accounts", "accounts");
+        let my_account = matching_accounts[0];
+        username = my_account["username"];
+    } catch (error) {}
+    return username;
 }
 
-function get_id_username() {
-
-}
-
-function get_id_session() {
-
+/**
+ * Gets the id of a user from their username.
+ * 
+ * @param username
+ * @returns {String} The id
+ */
+async function get_id_username(username) {
+    return (await mongo.get_data({"username": username}, "Accounts", "accounts"))[0]["_id"].toString();
 }
 
 function update_data() {
@@ -240,26 +287,27 @@ async function issue_session(user_id) {
 async function verify_session(hash) {
     let sessions = await mongo.get_data({"hash": hash}, "Accounts", "sessions");
     let info = "INVALID";
+    let valid = false;
     let user_id = 0;
     try {
         let my_session = sessions[0];
         let issue_time = my_session["issue_time"];
-        console.log("TRIED CALCULATING ISSUE TIME GOT");
-        console.log(((new Date()).getTime() - issue_time) / 1000 / 60 / 60 / 24);
         if (((new Date()).getTime() - issue_time) / 1000 / 60 / 60 / 24 > 1) { //Calculate issue_time, can't be greater than a day
             info = "EXPIRED";
         } else if (validPassword(my_session["user_id"], hash, my_session["salt"])) { //Check decryption
             user_id = my_session["user_id"];
             info = "VALID";
+            valid = true;
         }
     } catch (error) {}
     return {
         info: info,
+        valid: valid,
         user_id: user_id
     }
 }
 
 module.exports = {
     sign_up, login, fetch_all_accounts, get_account_username, get_id_username,
-    get_id_session, update_data, get_data, issue_session, verify_session
+    update_data, get_data, issue_session, verify_session
 }
