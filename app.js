@@ -25,6 +25,10 @@ app.post('/login', (req, res) => routes.login(req, res));
 
 app.get('/logout', (req, res) => routes.logout(req, res));
 
+app.post('/set_data', (req, res) => routes.set_account_data(req, res));
+
+app.get('/fetch_data', (req, res) => routes.get_account_data(req, res));
+
 //On every page load, verify if the user is signed in and if so, who they are signed is as.
 app.get('/verify-session', (req, res) => routes.verify_session(req, res));
 

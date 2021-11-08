@@ -32,8 +32,8 @@ async function get_data(req, res) {
  * 
  * @param {*} req expects req.body to be equivalent to a JSON of the following structure
  * {
- *      username: <STRING>,
- *      password: <STRING>
+ *      username: {STRING},
+ *      password: {STRING}
  * }
  * @param {*} res 
  * @returns a response on whether the user's request was successful. If it was, 
@@ -55,7 +55,7 @@ async function sign_up(req, res) {
         //Issue a new session using the account's _id
         let session_response = await accounts.issue_session(sign_up_response["user_id"]);
         
-        res.cookie("session", session_response["hash"], { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
+        res.cookie("session", session_response["hash"], { maxAge: 5 * 24 * 60 * 60 * 1000, httpOnly: true });
     }
     res.send({"info": sign_up_response["info"], "account_created": sign_up_response["account_created"]});
 }
@@ -64,13 +64,13 @@ async function sign_up(req, res) {
  * Login in a user. Sets session in cookie (for 24 hours.)
  * @param {*} req The request should have a body that has the following structure:
  * {
- *      username: <STRING>,
- *      password: <STRING>
+ *      username: {STRING},
+ *      password: {STRING}
  * }
  * @param {*} res The result is a JSON object of the following structure:
  * {
  *      loggedIn: true / false,
- *      info: <STRING>,
+ *      info: {STRING},
  * }
  */
 async function login(req, res) {
@@ -84,7 +84,7 @@ async function login(req, res) {
         //Issue a new session using the account's _id
         let session_response = await accounts.issue_session(login_response["user_id"]);
         
-        res.cookie("session", session_response["hash"], { maxAge: 24 * 60 * 60 * 1000, httpOnly: true });
+        res.cookie("session", session_response["hash"], { maxAge: 5 * 24 * 60 * 60 * 1000, httpOnly: true });
     }
 
     res.send({"info": login_response["info"], "loggedIn": login_response["loggedIn"]});
@@ -98,6 +98,48 @@ async function login(req, res) {
 async function logout(req, res) {
     res.clearCookie("session");
     res.send({"info": "You have been logged out."});
+}
+
+/**
+ * Set a user's data to the data they pass in the body.
+ * @param {*} req A request object with a body of the following structure:
+ * {
+ *      data: [STRING]
+ * }
+ * @param {*} res 
+ */
+async function set_account_data(req, res) {
+    let verify_response = await accounts.verify_session(req.cookies["session"]);
+    let update_response = {success: false};
+
+    if (verify_response["valid"]) {
+        update_response = await accounts.update_data(verify_response["user_id"], req.body.data);
+    }
+
+    res.send(update_response);
+}
+
+/**
+ * Get a user's data.
+ * 
+ * @param {*} req 
+ * @param {*} res of the following structure
+ * {
+ *      success: true / false
+ *      data: [STRING]
+ * }
+ */
+async function get_account_data(req, res) {
+    let verify_response = await accounts.verify_session(req.cookies["session"]);
+    let get_response = {success: false, data: ""};
+
+    if (verify_response["valid"]) {
+        let user_data = await accounts.get_data(verify_response["user_id"]);
+        get_response.success = true;
+        get_response.data = user_data;
+    }
+
+    res.send(get_response);
 }
 
 /**
@@ -125,11 +167,6 @@ async function verify_session(req, res) {
     res.send(response);
 }
 
-
-async function get_username(req, res) {s
-
-}
-
 module.exports = {
-    database, get_data, sign_up, login, logout, verify_session
+    database, get_data, sign_up, login, logout, set_account_data, get_account_data, verify_session
 }

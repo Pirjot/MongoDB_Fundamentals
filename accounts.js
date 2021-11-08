@@ -87,7 +87,9 @@ function genPassword(password) {
  * @returns {Boolean} true if the username already exists, false otherwise.
  */
 async function username_exists(username) {
-    return (await mongo.get_data({"username": username}, "Accounts", "accounts")).length > 0;
+    try {
+        return (await mongo.get_data({"username": username}, "Accounts", "accounts")).length > 0;
+    } catch (error) {}
 }
 
 /**
@@ -95,7 +97,6 @@ async function username_exists(username) {
  * 
  * Security Standards to satisfy:
  * Username and Password must be of sufficient length
- * TODO: ADD MORE
  * 
  * @param {String} username 
  * @param {String} password 
@@ -115,14 +116,11 @@ function valid_user_pass_combo(username, password) {
  * @return A JSON Object TODO: ADD INFO THAT GETS SENT BACK IN JSON
  */
 async function sign_up(username, password) {
-    //CHECK REQUIREMENTS
-    //Check if the username already exists
     let createAccount = true;
     let message = "CREATE ACCOUNT FAILED";
     let user_id = 0;
 
-    //TODO: Clean up inputs as needed (removing spaces on the outside, for example)
-
+    //CHECK REQUIREMENTS
     if (await username_exists(username)) { //No duplicate accounts
         message = "USERNAME ALREADY EXISTS";
         createAccount = false;
@@ -150,9 +148,9 @@ async function sign_up(username, password) {
 
         let data = {
             "user_id": user_id,
-            "Data": "", //The user's data
+            "data": "", //The user's data
             "signed_in_count": 1 //Amount of times this user has signed in
-        }
+        };
         await mongo.add_data(data, "Accounts", "data");
     }
 
@@ -160,7 +158,7 @@ async function sign_up(username, password) {
         info: message,
         account_created: createAccount,
         user_id: user_id,
-    }
+    };
 }
 
 /**
@@ -190,16 +188,14 @@ async function login(username, password) {
         user_id = accounts[0]["_id"].toString();
         message = "LOGIN SUCCESSFUL";
         loggedIn = true;
+
+        await mongo.update_docs({"user_id": user_id}, {$inc: {"signed_in_count": 1}}, "Accounts", "data");
     }
     return {
         info: message,
         user_id: user_id,
         loggedIn: loggedIn
-    }
-}
-
-async function fetch_all_accounts() {
-    return await mongo.get_data({}, "Accounts", "accounts");
+    };
 }
 
 /**
@@ -225,15 +221,56 @@ async function get_account_username(user_id) {
  * @returns {String} The id
  */
 async function get_id_username(username) {
-    return (await mongo.get_data({"username": username}, "Accounts", "accounts"))[0]["_id"].toString();
+    try {
+        return (await mongo.get_data({"username": username}, "Accounts", "accounts"))[0]["_id"].toString();
+    } catch(error) {}
 }
 
-function update_data() {
+/**
+ * Update a user's special data string.
+ * 
+ * @param {String} user_id
+ * @param {String} data
+ * @returns {JSON} of the structure
+ * {
+ *      info: "SUCCESSFUL" / "UNSUCCESSFUL"
+ *      success: true / false
+ * }
+ */
+async function update_data(user_id, data) {
+    let info = "UNSUCCESSFUL";
+    let success = false;
 
+    try {
+        response = await mongo.update_docs({user_id: user_id}, {$set: {"data": data}}, "Accounts", "data");
+        //TODO Check if response acknowledged correct document
+        info = "SUCCESSFUL";
+        success = true;
+    } catch (error) {}
+
+    return {
+        info,
+        success
+    };
 }
 
-function get_data() {
+/**
+ * Fetch a user's data.
+ * 
+ * @param {*} user_id 
+ * @returns {String} the user's data as a string
+ */
+async function get_data(user_id) {
+    let response = "";
 
+    try {
+        let user_doc = await mongo.get_data({user_id: user_id}, "Accounts", "data");
+        response = user_doc[0]["data"];
+    } catch (error) {}
+
+    
+
+    return response;
 }
 
 /**
@@ -253,22 +290,24 @@ function get_data() {
  * @returns the session object
  */
 async function issue_session(user_id) {
-    let matching_sessions = await mongo.get_data({"user_id": user_id}, "Accounts", "sessions");
-    if (matching_sessions.length != 0) { //Just refresh the session if the user already has one
-        await mongo.update_docs({"user_id": user_id}, {$set: {issue_time: (new Date()).getTime()}});
-    } else { //Issue a new session
-        let hashSalt = genPassword(user_id);
-        let new_doc = {
-            "user_id": user_id,
-            "hash": hashSalt.hash,
-            "salt": hashSalt.salt,
-            issue_time: (new Date()).getTime(),
+    try {
+        let matching_sessions = await mongo.get_data({"user_id": user_id}, "Accounts", "sessions");
+        if (matching_sessions.length != 0) { //Just refresh the session if the user already has one
+            await mongo.update_docs({"user_id": user_id}, {$set: {issue_time: (new Date()).getTime()}});
+        } else { //Issue a new session
+            let hashSalt = genPassword(user_id);
+            let new_doc = {
+                "user_id": user_id,
+                "hash": hashSalt.hash,
+                "salt": hashSalt.salt,
+                issue_time: (new Date()).getTime(),
+            }
+            await mongo.add_data(new_doc, "Accounts", "sessions");
         }
-        await mongo.add_data(new_doc, "Accounts", "sessions");
-    }
-    //Send back the the user's session (by re-verifying that it actually showed up in the database)
-    let sessions = await mongo.get_data({"user_id": user_id}, "Accounts", "sessions");
-    return sessions[0];
+        //Send back the the user's session (by re-verifying that it actually showed up in the database)
+        let sessions = await mongo.get_data({"user_id": user_id}, "Accounts", "sessions");
+        return sessions[0];
+    } catch (error) {}
 }
 
 /**
@@ -281,33 +320,39 @@ async function issue_session(user_id) {
  * @returns a doc representing the state of the session formatted as such:
  * {
  *      info: "VALID" / "EXPIRED" / "INVALID",
- *      user_id: <USER_ID>
+ *      user_id: [STRING]
+ *      valid: true / false
  * }
  */
 async function verify_session(hash) {
-    let sessions = await mongo.get_data({"hash": hash}, "Accounts", "sessions");
-    let info = "INVALID";
-    let valid = false;
-    let user_id = 0;
     try {
-        let my_session = sessions[0];
-        let issue_time = my_session["issue_time"];
-        if (((new Date()).getTime() - issue_time) / 1000 / 60 / 60 / 24 > 1) { //Calculate issue_time, can't be greater than a day
-            info = "EXPIRED";
-        } else if (validPassword(my_session["user_id"], hash, my_session["salt"])) { //Check decryption
-            user_id = my_session["user_id"];
-            info = "VALID";
-            valid = true;
-        }
-    } catch (error) {}
+        let sessions = await mongo.get_data({"hash": hash}, "Accounts", "sessions");
+        let info = "INVALID";
+        let valid = false;
+        let user_id = 0;
+        try {
+            let my_session = sessions[0];
+            let issue_time = my_session["issue_time"];
+            if (((new Date()).getTime() - issue_time) / 1000 / 60 / 60 / 24 > 1) { //Calculate issue_time, can't be greater than a day
+                info = "EXPIRED";
+            } else if (validPassword(my_session["user_id"], hash, my_session["salt"])) { //Check decryption
+                user_id = my_session["user_id"];
+                info = "VALID";
+                valid = true;
+            }
+        } catch (error) {}
+        return {
+            info: info,
+            valid: valid,
+            user_id: user_id
+        };
+    } catch(error) {}
     return {
-        info: info,
-        valid: valid,
-        user_id: user_id
-    }
+        valid: false
+    };
 }
 
 module.exports = {
-    sign_up, login, fetch_all_accounts, get_account_username, get_id_username,
+    sign_up, login, get_account_username, get_id_username,
     update_data, get_data, issue_session, verify_session
 }

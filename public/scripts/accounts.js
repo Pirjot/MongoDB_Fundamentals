@@ -17,8 +17,12 @@ function onPageLoad() {
             body: JSON.stringify({"username": username, "password": password})
         };
         let response = await fetch('/sign_up', options);
-        window.location.reload();
-        console.log(await response.json());
+        let parsed = await response.json();
+        if(parsed.account_created) {
+            window.location.reload();
+        } else {
+            alert(parsed.info);
+        }
     });
     document.getElementById("login").addEventListener("click", async (evt) => {
         evt.preventDefault();
@@ -44,8 +48,20 @@ function onPageLoad() {
             },
         };
         let response = await fetch('/logout', options);
-        // window.location.reload();
-        console.log(await response.json());
+        window.location.reload();
+    });
+    document.getElementById("submit-data").addEventListener("click", async (evt) => {
+        evt.preventDefault();
+        const options = {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({data: document.getElementById("user-data").value})
+        };
+        let response = await fetch('/set_data', options);
+        let parsed = await response.json();
+        alert(parsed.info);
     });
 }
 
